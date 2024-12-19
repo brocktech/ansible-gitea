@@ -8,7 +8,7 @@ __metaclass__ = type
 
 DOCUMENTATION = r"""
 ---
-module: user
+module: organization
 
 short_description: Module to create users in gitea api.
 
@@ -19,27 +19,21 @@ version_added: "1.0.0"
 description: This module queries the gitea api and ensures a user is created.
 
 options:
-    username:
-        description: Login name for the created user.
+    name:
+        description:
+            - Name of the organization to be created.
+            - Can include letters, numbers, and underscores only.
         required: true
         type: str
-    password:
-        description: Password for the created user.
+    owner:
+        description: Username of the organization's owner.
         required: false
         type: str
-    email:
-        description: Email for the created user.
+    members:
+        description: List of users to add as owners to the organization.
         required: false
-        type: str
-    full_name:
-        description: Full name for the created user.
-        required: false
-        type: str
-    restricted:
-        description: Whether user is restricted in gitea
-        required: false
-        type: bool
-        default: true
+        type: list
+        elements: str
 
 # Specify this value according to your collection
 # in format of namespace.collection.doc_fragment_name
@@ -48,46 +42,35 @@ extends_documentation_fragment:
 """
 
 EXAMPLES = r"""
-# Create a user with default restricted/visibility.
-- name: Create a user with default restricted/visibility.
-  gsbtech.gitea_api.user:
-    username: test
-    password: test-password
-    email: test@example.com
-    full_name: Test User
-    host: gitea.example.com
-    url_username: <api_username>
-    url_password: <api_password>
-
-# Create a public user.
-- name: Create a public user.
-  gsbtech.gitea_api.user:
-    username: test
-    password: test-password
-    email: test@example.com
-    full_name: Test User
-    host: gitea.example.com
-    url_username: <api_username>
-    url_password: <api_password>
+# Create a public org with members.
+- name: Test with members.
+  gsbtech.gitea_api.organization:
+    name: test-org
+    owner: test
+    members:
+        - test2
+        - test3
     visibility: public
-
-# Create an unrestricted limited user.
-- name: Create an unrestricted limited user.
-  gsbtech.gitea_api.user:
-    username: test
-    password: test-password
-    email: test@example.com
-    full_name: Test User
     host: gitea.example.com
     url_username: <api_username>
     url_password: <api_password>
-    visibility: limited
-    restricted: false
+    state: present
 
-# Delete a user.
-- name: Delete a user.
-  gsbtech.gitea_api.user:
-    username: test
+# Create a limited org with no extra members.
+- name: Test with no members.
+  gsbtech.gitea_api.organization:
+    name: test-org
+    owner: test
+    visibility: limited
+    host: gitea.example.com
+    url_username: <api_username>
+    url_password: <api_password>
+    state: present
+
+# Remove an organization.
+- name: Test removal.
+  gsbtech.gitea_api.organization:
+    name: test-org
     host: gitea.example.com
     url_username: <api_username>
     url_password: <api_password>
@@ -96,8 +79,8 @@ EXAMPLES = r"""
 
 RETURN = r"""
 # These are examples of possible return values, and in general should use other names for return values.
-user_id:
-    description: User id of the created user.
+organiztion_id:
+    description: ID of the created organization.
     type: int
     returned: when state=present always returned; when state=absent only returned if changed
     sample: 1
@@ -170,49 +153,48 @@ def create_or_update_user(module: AnsibleModule, result: dict):
             [targeted_user[prop] != module.params[prop] for prop in properties_to_check]
         )
         if property_changed or login_changed(module):
-            _, user_update = fetch_url(
+            user_update_body = {
+                "email": module.params["email"],
+                "full_name": module.params["full_name"],
+                "visibility": module.params["visibility"],
+                "restricted": module.params["restricted"],
+                "password": module.params["password"],
+                "login_name": module.params["username"],
+            }
+            user_update, user_update_info = fetch_url(
                 module=module,
                 url=f"https://{module.params['host']}/api/v1/admin/users/{module.params['username']}",
                 headers={"Content-type": "application/json"},
+                data=module.jsonify(user_update_body),
                 method="PATCH",
-                data=module.jsonify(
-                    {
-                        "email": module.params["email"],
-                        "full_name": module.params["full_name"],
-                        "visibility": module.params["visibility"],
-                        "restricted": module.params["restricted"],
-                        "password": module.params["password"],
-                        "login_name": module.params["username"],
-                    }
-                ),
             )
-            if user_update["status"] != 200:
+            if user_update_info["status"] != 200:
                 module.fail_json(
-                    msg=f"Failed to complete user update request: {user_update['body']}",
+                    msg=f"Failed to complete user update request: {user_update_info['body']}",
                     **result,
                 )
             result["changed"] = True
         result["user_id"] = targeted_user["id"]
         module.exit_json(**result)
 
+    create_user_body = {
+        "login_name": module.params["username"],
+        "username": module.params["username"],
+        "password": module.params["password"],
+        "email": module.params["email"],
+        "full_name": module.params["full_name"],
+        "restricted": module.params["restricted"],
+        "visibility": module.params["visibility"],
+        "must_change_password": False,
+        "source_id": 0,
+    }
+
     create_user_req, create_user_req_info = fetch_url(
         module=module,
         url=f"https://{module.params['host']}/api/v1/admin/users",
         headers={"Content-type": "application/json"},
+        data=module.jsonify(create_user_body),
         method="POST",
-        data=module.jsonify(
-            {
-                "login_name": module.params["username"],
-                "username": module.params["username"],
-                "password": module.params["password"],
-                "email": module.params["email"],
-                "full_name": module.params["full_name"],
-                "restricted": module.params["restricted"],
-                "visibility": module.params["visibility"],
-                "must_change_password": False,
-                "source_id": 0,
-            }
-        ),
     )
 
     if create_user_req_info["status"] != 201:
@@ -231,11 +213,9 @@ def create_or_update_user(module: AnsibleModule, result: dict):
 def run_module():
     # define available arguments/parameters a user can pass to the module
     module_args = dict(
-        username=dict(type="str", required=True),
-        password=dict(type="str", required=False, no_log=True),
-        email=dict(type="str", required=False),
-        full_name=dict(type="str", required=False),
-        restricted=dict(type="bool", required=False, default=True),
+        name=dict(type="str", required=True),
+        owner=dict(type="str", required=False),
+        members=dict(type="list", elements="str", required=False),
         visibility=dict(
             type="str",
             required=False,
@@ -250,7 +230,7 @@ def run_module():
         ),
     )
 
-    module_args_required_if = [("state", "present", ("password", "email", "full_name"))]
+    module_args_required_if = [("state", "present", ("owner",))]
 
     # seed the result dict in the object
     # we primarily care about changed and state
