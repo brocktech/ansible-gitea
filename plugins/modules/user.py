@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright: (c) 2018, Terry Jones <terry.jones@example.org>
+# Copyright: (c) 2024, Curtis Jones <cjones2@brocku.ca>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 
@@ -45,6 +45,7 @@ options:
 # in format of namespace.collection.doc_fragment_name
 extends_documentation_fragment:
     - gsbtech.gitea_api.api
+    - gsbtech.gitea_api.api.visibility
 """
 
 EXAMPLES = r"""

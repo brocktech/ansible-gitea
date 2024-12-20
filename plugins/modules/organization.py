@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright: (c) 2018, Terry Jones <terry.jones@example.org>
+# Copyright: (c) 2024, Curtis Jones <cjones2@brocku.ca>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 
@@ -39,6 +39,7 @@ options:
 # in format of namespace.collection.doc_fragment_name
 extends_documentation_fragment:
     - gsbtech.gitea_api.api
+    - gsbtech.gitea_api.api.visibility
 """
 
 EXAMPLES = r"""
@@ -90,123 +91,187 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.urls import fetch_url
 
 
-def login_changed(module: AnsibleModule) -> bool:
-    api_creds = (module.params["url_username"], module.params["url_password"])
-    module.params["url_username"] = module.params["username"]
-    module.params["url_password"] = module.params["password"]
-    _, login_check = fetch_url(
+def api_get_org(module: AnsibleModule, result: dict) -> dict | None:
+    orgs_req, orgs_req_info = fetch_url(
         module=module,
-        url=f"https://{module.params['host']}/api/v1/user",
+        url=f"https://{module.params['host']}/api/v1/orgs",
         method="GET",
     )
-    module.params["url_username"] = api_creds[0]
-    module.params["url_password"] = api_creds[1]
-    return login_check["status"] == 401
 
-
-def api_get_user(module: AnsibleModule, result: dict) -> dict | None:
-    users_req, users_req_info = fetch_url(
-        module=module,
-        url=f"https://{module.params['host']}/api/v1/admin/users?login_name={module.params['username']}",
-        method="GET",
-    )
-    if users_req_info["status"] != 200:
+    if orgs_req_info["status"] != 200:
         # during the execution of the module, if there is an exception or a
         # conditional state that effectively causes a failure, run
         # AnsibleModule.fail_json() to pass in the message and the result
         module.fail_json(
-            msg=f"Failed to complete user list request: {users_req_info['body']}",
+            msg=f"Failed to complete organization list request: {orgs_req_info['body']}",
             **result,
         )
-    user_list = module.from_json(users_req.read())
-    return user_list[0] if len(user_list) == 1 else None
+
+    return next(
+        (
+            org
+            for org in module.from_json(orgs_req.read())
+            if org["name"] == module.params["name"]
+        ),
+        None,
+    )
 
 
-def remove_user(module: AnsibleModule, result: dict):
-    targeted_user = api_get_user(module, result)
+def remove_org(module: AnsibleModule):
+    # seed the result dict in the object
+    # we primarily care about changed and state
+    # changed is if this module effectively modified the target
+    # state will include any data that you want your module to pass back
+    # for consumption, for example, in a subsequent task
+    result = dict(
+        changed=False,
+    )
 
-    if targeted_user is None:
+    targeted_org = api_get_org(module, result)
+
+    if targeted_org is None:
         module.exit_json(**result)
 
-    _, delete_user = fetch_url(
+    _, delete_org = fetch_url(
         module=module,
-        url=f"https://{module.params['host']}/api/v1/admin/users/{module.params['username']}?purge=true",
+        url=f"https://{module.params['host']}/api/v1/orgs/{module.params['name']}",
         method="DELETE",
     )
 
-    if delete_user["status"] != 204:
+    if delete_org["status"] != 204:
         module.fail_json(
-            msg=f"Failed to complete user delete request: {delete_user['body']}",
+            msg=f"Failed to complete organization delete request: {delete_org['body']}",
             **result,
         )
 
     result["changed"] = True
-    result["user_id"] = targeted_user["id"]
+    result["organization_id"] = targeted_org["id"]
     module.exit_json(**result)
 
 
-def create_or_update_user(module: AnsibleModule, result: dict):
-    targeted_user = api_get_user(module, result)
-    if targeted_user is not None:
-        properties_to_check = ["email", "full_name", "visibility", "restricted"]
-        property_changed = any(
-            [targeted_user[prop] != module.params[prop] for prop in properties_to_check]
-        )
-        if property_changed or login_changed(module):
-            user_update_body = {
-                "email": module.params["email"],
-                "full_name": module.params["full_name"],
-                "visibility": module.params["visibility"],
-                "restricted": module.params["restricted"],
-                "password": module.params["password"],
-                "login_name": module.params["username"],
-            }
-            user_update, user_update_info = fetch_url(
-                module=module,
-                url=f"https://{module.params['host']}/api/v1/admin/users/{module.params['username']}",
-                headers={"Content-type": "application/json"},
-                data=module.jsonify(user_update_body),
-                method="PATCH",
-            )
-            if user_update_info["status"] != 200:
-                module.fail_json(
-                    msg=f"Failed to complete user update request: {user_update_info['body']}",
-                    **result,
-                )
-            result["changed"] = True
-        result["user_id"] = targeted_user["id"]
-        module.exit_json(**result)
+def create_org(module: AnsibleModule, result: dict) -> dict:
 
-    create_user_body = {
-        "login_name": module.params["username"],
-        "username": module.params["username"],
-        "password": module.params["password"],
-        "email": module.params["email"],
-        "full_name": module.params["full_name"],
-        "restricted": module.params["restricted"],
-        "visibility": module.params["visibility"],
-        "must_change_password": False,
-        "source_id": 0,
-    }
-
-    create_user_req, create_user_req_info = fetch_url(
+    create_org_req, create_org_info = fetch_url(
         module=module,
-        url=f"https://{module.params['host']}/api/v1/admin/users",
+        url=f"https://{module.params['host']}/api/v1/admin/users/{module.params['owner']}/orgs",
         headers={"Content-type": "application/json"},
-        data=module.jsonify(create_user_body),
         method="POST",
+        data=module.jsonify(
+            {
+                "username": module.params["name"],
+                "visibility": module.params["visibility"],
+            }
+        ),
     )
 
-    if create_user_req_info["status"] != 201:
+    if create_org_info["status"] != 201:
         module.fail_json(
-            msg=f"Failed to complete user create request: {create_user_req_info['body']}",
+            msg=f"Failed to complete organization create request: {create_org_info['body']}",
             **result,
         )
 
+    result["changed"] = True
+
+    return module.from_json(create_org_req.read())
+
+
+def update_org_members(module: AnsibleModule, result: dict, org: dict):
+    team_list_req, team_list_info = fetch_url(
+        module=module,
+        url=f"https://{module.params['host']}/api/v1/orgs/{org['name']}/teams",
+        method="GET",
+    )
+
+    if team_list_info["status"] != 200:
+        module.fail_json(
+            msg=f"Failed to complete organization team list request: {team_list_info['body']}",
+            **result,
+        )
+
+    owner_team = next(
+        (
+            team
+            for team in module.from_json(team_list_req.read())
+            if team["name"] == "Owners"
+        ),
+        None,
+    )
+
+    if owner_team is None:
+        module.fail_json(
+            msg=f"Owner team was not present for [{org['name']}].",
+            **result,
+        )
+
+    owners_req, owners_info = fetch_url(
+        module=module,
+        url=f"https://{module.params['host']}/api/v1/teams/{owner_team['id']}/members",
+        method="GET",
+    )
+
+    if owners_info["status"] != 200:
+        module.fail_json(
+            msg=f"Failed to complete organization owners members list request: {owners_info['body']}",
+            **result,
+        )
+
+    owners = module.from_json(owners_req.read())
+    expected_members = [module.params["owner"]] + module.params["members"]
+
+    for member in expected_members:
+        if (
+            next((owner for owner in owners if owner["login_name"] == member), None)
+            is None
+        ):
+            _, owner_info = fetch_url(
+                module=module,
+                url=f"https://{module.params['host']}/api/v1/teams/{owner_team['id']}/members/{member}",
+                method="PUT",
+            )
+
+            if owner_info["status"] != 204:
+                module.fail_json(
+                    msg=f"Failed to add user({member}) to org({org['name']}) owners: {owner_info['body']}",
+                    **result,
+                )
+            result["changed"] = True
+
+
+def create_and_update_org(module: AnsibleModule):
+    # seed the result dict in the object
+    # we primarily care about changed and state
+    # changed is if this module effectively modified the target
+    # state will include any data that you want your module to pass back
+    # for consumption, for example, in a subsequent task
+    result = dict(
+        changed=False,
+    )
+
+    targeted_org = api_get_org(module, result)
+    targeted_org = (
+        targeted_org if targeted_org is not None else create_org(module, result)
+    )
+
+    if targeted_org["visibility"] != module.params["visibility"]:
+        _, vis_update_info = fetch_url(
+            module=module,
+            url=f"https://{module.params['host']}/api/v1/orgs/{targeted_org['name']}",
+            headers={"Content-type": "application/json"},
+            method="PATCH",
+            data=module.jsonify({"visibility": module.params["visibility"]}),
+        )
+
+        if vis_update_info["status"] != 200:
+            module.fail_json(
+                msg=f"Failed to update visibilty to {module.params['visibility']} for org({targeted_org['name']}): {vis_update_info['body']}",
+                **result,
+            )
+
+    update_org_members(module, result, targeted_org)
+
     # in the event of a successful module execution, you will want to
     # simple AnsibleModule.exit_json(), passing the key/value results
-    result["user_id"] = module.from_json(create_user_req.read())["id"]
-    result["changed"] = True
+    result["organization_id"] = targeted_org["id"]
     module.exit_json(**result)
 
 
@@ -215,7 +280,7 @@ def run_module():
     module_args = dict(
         name=dict(type="str", required=True),
         owner=dict(type="str", required=False),
-        members=dict(type="list", elements="str", required=False),
+        members=dict(type="list", elements="str", required=False, default=[]),
         visibility=dict(
             type="str",
             required=False,
@@ -249,6 +314,7 @@ def run_module():
         argument_spec=module_args,
         required_if=module_args_required_if,
         supports_check_mode=True,
+        no_log=False,
     )
 
     # always set force_basic_auth to true
@@ -262,9 +328,9 @@ def run_module():
 
     match module.params["state"]:
         case "present":
-            create_or_update_user(module, result)
+            create_and_update_org(module)
         case "absent":
-            remove_user(module, result)
+            remove_org(module)
 
 
 def main():
