@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT-0
-
+---
 namespace: brocktech
 
 name: gitea
@@ -9,7 +9,7 @@ version: 1.0.0
 readme: README.md
 
 authors:
-- Curtis Jones <curtis.jones@brocku.ca>
+  - Curtis Jones <curtis.jones@brocku.ca>
 
 description: Gsbtech utilities for dealing with the gitea api.
 
