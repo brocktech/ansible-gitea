@@ -47,13 +47,13 @@ options:
 # Specify this value according to your collection
 # in format of namespace.collection.doc_fragment_name
 extends_documentation_fragment:
-    - gsbtech.gitea_api.api
+    - brocktech.gitea.api
 """
 
 EXAMPLES = r"""
 # Create a secret.
 - name: Create secret in an org.
-  gsbtech.gitea_api.secret:
+  brocktech.gitea.secret:
     name: test-secret
     value: test
     organization: test-org
@@ -64,7 +64,7 @@ EXAMPLES = r"""
 
 # Update a secret.
 - name: Update secret in an org.
-  gsbtech.gitea_api.secret:
+  brocktech.gitea.secret:
     name: test-secret
     value: test
     organization: test-org
@@ -76,7 +76,7 @@ EXAMPLES = r"""
 
 # Remove a secret.
 - name: Create secret in an org.
-  gsbtech.gitea_api.secret:
+  brocktech.gitea.secret:
     name: test-secret
     organization: test-org
     host: gitea.example.com

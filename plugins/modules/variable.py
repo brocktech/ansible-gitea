@@ -40,13 +40,13 @@ options:
 # Specify this value according to your collection
 # in format of namespace.collection.doc_fragment_name
 extends_documentation_fragment:
-    - gsbtech.gitea_api.api
+    - brocktech.gitea.api
 """
 
 EXAMPLES = r"""
 # Create a variable.
 - name: Create var in an org.
-  gsbtech.gitea_api.variable:
+  brocktech.gitea.variable:
     name: test-var
     value: test
     organization: test-org
@@ -57,7 +57,7 @@ EXAMPLES = r"""
 
 # Remove a variable.
 - name: Create var in an org.
-  gsbtech.gitea_api.variable:
+  brocktech.gitea.variable:
     name: test-var
     organization: test-org
     host: gitea.example.com

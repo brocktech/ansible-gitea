@@ -44,14 +44,14 @@ options:
 # Specify this value according to your collection
 # in format of namespace.collection.doc_fragment_name
 extends_documentation_fragment:
-    - gsbtech.gitea_api.api
-    - gsbtech.gitea_api.api.visibility
+    - brocktech.gitea.api
+    - brocktech.gitea.api.visibility
 """
 
 EXAMPLES = r"""
 # Create a user with default restricted/visibility.
 - name: Create a user with default restricted/visibility.
-  gsbtech.gitea_api.user:
+  brocktech.gitea.user:
     username: test
     password: test-password
     email: test@example.com
@@ -62,7 +62,7 @@ EXAMPLES = r"""
 
 # Create a public user.
 - name: Create a public user.
-  gsbtech.gitea_api.user:
+  brocktech.gitea.user:
     username: test
     password: test-password
     email: test@example.com
@@ -74,7 +74,7 @@ EXAMPLES = r"""
 
 # Create an unrestricted limited user.
 - name: Create an unrestricted limited user.
-  gsbtech.gitea_api.user:
+  brocktech.gitea.user:
     username: test
     password: test-password
     email: test@example.com
@@ -87,7 +87,7 @@ EXAMPLES = r"""
 
 # Delete a user.
 - name: Delete a user.
-  gsbtech.gitea_api.user:
+  brocktech.gitea.user:
     username: test
     host: gitea.example.com
     url_username: <api_username>

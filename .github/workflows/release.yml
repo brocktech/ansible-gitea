@@ -1,0 +1,52 @@
+---
+# This workflow requires a GALAXY_API_KEY secret present in the GitHub
+# repository or organization.
+#
+# See: https://github.com/marketplace/actions/publish-ansible-role-to-galaxy
+# See: https://github.com/ansible/galaxy/issues/46
+
+name: Release
+'on':
+  push:
+    tags:
+      - '*'
+
+defaults:
+  run:
+    working-directory: 'brocktech.gitea'
+
+jobs:
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the codebase.
+        uses: actions/checkout@v6
+        with:
+          path: 'brocktech.gitea'
+
+      - name: Set up Python 3.
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3'  # Can't go to 3.14+ until Ansible 13.x
+
+      - name: Install Ansible.
+        run: pip3 install ansible-core
+
+      - name: Create out directory for release artifacts.
+        run: mkdir out
+
+      - name: Build the collection in the release artifact directory.
+        run: ansible-galaxy collection build --output-path=out
+
+      - name: Trigger a new import on Galaxy.
+        run: ansible-galaxy collection publish --api-key ${{ secrets.GALAXY_API_KEY }} out/brocktech-gitea-${{ github.ref_name }}.tar.gz
+
+      - name: Create a github release.
+        uses: softprops/action-gh-release@v3
+        with:
+          body_path: changelog/${{ github.ref_name }}.md
+          files: out/brocktech-gitea-${{ github.ref_name }}.tar.gz

@@ -38,14 +38,14 @@ options:
 # Specify this value according to your collection
 # in format of namespace.collection.doc_fragment_name
 extends_documentation_fragment:
-    - gsbtech.gitea_api.api
-    - gsbtech.gitea_api.api.visibility
+    - brocktech.gitea.api
+    - brocktech.gitea.api.visibility
 """
 
 EXAMPLES = r"""
 # Create a public org with members.
 - name: Test with members.
-  gsbtech.gitea_api.organization:
+  brocktech.gitea.organization:
     name: test-org
     owner: test
     members:
@@ -59,7 +59,7 @@ EXAMPLES = r"""
 
 # Create a limited org with no extra members.
 - name: Test with no members.
-  gsbtech.gitea_api.organization:
+  brocktech.gitea.organization:
     name: test-org
     owner: test
     visibility: limited
@@ -70,7 +70,7 @@ EXAMPLES = r"""
 
 # Remove an organization.
 - name: Test removal.
-  gsbtech.gitea_api.organization:
+  brocktech.gitea.organization:
     name: test-org
     host: gitea.example.com
     url_username: <api_username>
