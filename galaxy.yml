@@ -35,3 +35,4 @@ build_ignore:
   - .gitignore
   - flake.nix
   - flake.lock
+  - .direnv
