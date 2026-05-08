@@ -42,11 +42,9 @@ jobs:
       - name: Build the collection in the release artifact directory.
         run: ansible-galaxy collection build --output-path=out
 
-      - name: Trigger a new import on Galaxy.
+      - name: Publish the built collection to Ansible Galaxy
         run: >
-          ansible-galaxy collection publish
-          --api-key ${{ secrets.GALAXY_API_KEY }}
-          out/brocktech-gitea-${{ github.ref_name }}.tar.gz
+          ansible-galaxy collection publish --api-key ${{ secrets.GALAXY_API_KEY }} out/brocktech-gitea-${{ github.ref_name }}.tar.gz
 
       - name: Create a github release.
         uses: softprops/action-gh-release@v3
