@@ -267,6 +267,8 @@ def create_and_update_org(module: AnsibleModule):
                 **result,
             )
 
+        result["changed"] = True
+
     update_org_members(module, result, targeted_org)
 
     # in the event of a successful module execution, you will want to

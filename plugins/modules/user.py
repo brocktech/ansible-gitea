@@ -193,6 +193,7 @@ def create_or_update_user(module: AnsibleModule, result: dict):
                     **result,
                 )
             result["changed"] = True
+
         result["user_id"] = targeted_user["id"]
         module.exit_json(**result)
 
