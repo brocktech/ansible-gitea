@@ -51,5 +51,5 @@ jobs:
       - name: Create a github release.
         uses: softprops/action-gh-release@v3
         with:
-          body_path: changelog/${{ github.ref_name }}.md
-          files: out/brocktech-gitea-${{ github.ref_name }}.tar.gz
+          body_path: brocktech.gitea/changelog/${{ github.ref_name }}.md
+          files: brocktech.gitea/out/brocktech-gitea-${{ github.ref_name }}.tar.gz

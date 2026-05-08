@@ -45,5 +45,5 @@ jobs:
       - name: Create release for new ansible collection version.
         uses: https://gitea.com/actions/gitea-release-action@v1
         with:
-          body_path: "changelog/${{ gitea.ref_name }}.md"
-          files: out/brocktech-gitea-${{ gitea.ref_name }}.tar.gz
+          body_path: brocktech.gitea/changelog/${{ gitea.ref_name }}.md
+          files: brocktech.gitea/out/brocktech-gitea-${{ gitea.ref_name }}.tar.gz
