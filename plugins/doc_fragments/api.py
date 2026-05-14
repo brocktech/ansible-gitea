@@ -41,7 +41,7 @@ options:
             - 'absent'
 
 author:
-    - Curtis Jones (@ikubetoomuzik)
+    - Curtis Jones (@brocktech)
 """
     VISIBILITY = r"""
 ---
